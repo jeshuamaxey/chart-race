@@ -11,9 +11,10 @@ type AnimatedLineChartProps = {
   dateRange: [string, string]
   lookAhead: number
   duration: number
+  chartType?: 'line' | 'area'
 }
 
-const AnimatedLineChart = ({series, dateRange, lookAhead, duration}: AnimatedLineChartProps) => {
+const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 'line'}: AnimatedLineChartProps) => {
   const DURATION = duration || 1
   
   const [elapsed, setElapsed] = useState(0)
@@ -145,13 +146,13 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration}: AnimatedLin
     (): AxisOptions<DailyPrice>[] => [
       {
         getValue: datum => datum.close,
-        elementType: 'line',
+        elementType: chartType,
         formatters: {
           scale: (value: number) => USDollar.format(value),
         }
       },
     ],
-    []
+    [chartType]
   )
 
   return (

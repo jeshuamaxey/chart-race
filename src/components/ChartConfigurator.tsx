@@ -23,6 +23,7 @@ import AnimatedLineChart from "./AnimatedLineChart";
 const YEAR = 365 * 24 * 60 * 60 * 1000;
 
 const ChartConfigurator = () => {
+  const [chartType, setChartType] = useState<'line' | 'area'>('line')
   const [durationInSeconds, setDurationInSeconds] = useState(3)
   const [lookAhead, setLookAhead] = useState(31); // days
   const [symbol, setSymbol] = useState<SymbolSearchResult | null>(null);
@@ -62,7 +63,6 @@ const ChartConfigurator = () => {
 
   const loadChartData = ()=> {
     console.log('loading chart data', series, dateRange)
-    console.warn("This is an unreliable way to update state after looping through and doing an API call per series")
     series.forEach(async (s) => {
       console.log('loading data for', s.symbol.symbol)
 
@@ -174,7 +174,7 @@ const ChartConfigurator = () => {
               </CardHeader>
               <CardContent>
 
-              <div className="div flex flex-col gap-2 pb-4">
+                <div className="div flex flex-col gap-2 pb-4">
                   <Label htmlFor="lookahead">Lookahead</Label>
                   <Select name="lookahead" defaultValue={String(lookAhead)} onValueChange={(n) => setLookAhead(Number(n))}>
                     <SelectTrigger className="w-[180px]">
@@ -186,6 +186,19 @@ const ChartConfigurator = () => {
                       <SelectItem value="31">1 month</SelectItem>
                       <SelectItem value="182">6 months</SelectItem>
                       <SelectItem value="365">Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="div flex flex-col gap-2 pb-4">
+                  <Label htmlFor="chartType">Chart type</Label>
+                  <Select name="chartType" defaultValue={chartType} onValueChange={(n: 'line' | 'area') => setChartType(n)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Chart type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="line">Line</SelectItem>
+                      <SelectItem value="area">Filled</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -207,7 +220,7 @@ const ChartConfigurator = () => {
           </CardHeader>
           <CardContent>
 
-            { renderChart && <AnimatedLineChart series={series} dateRange={dateRange} lookAhead={lookAhead} duration={1000*durationInSeconds} /> }
+            { renderChart && <AnimatedLineChart series={series} dateRange={dateRange} lookAhead={lookAhead} duration={1000*durationInSeconds} chartType={chartType}/> }
             {/* <code>
               <pre>
                 {JSON.stringify(chartData, null, 2)}

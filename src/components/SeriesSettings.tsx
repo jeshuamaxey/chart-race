@@ -26,6 +26,8 @@ const SeriesSettings = ({ series, onRemoveSeries, onSeriesUpdate }: SeriesSettin
     onSeriesUpdate({...series, config: {...series.config, color}})
   }
 
+  const exchangeName = series.symbol?.exchangeDisp || series.symbol?.exchange
+
   return <div className="flex flex-row items-center gap-2">
     <div className="flex flex-row gap-2">
       <div>
@@ -33,18 +35,18 @@ const SeriesSettings = ({ series, onRemoveSeries, onSeriesUpdate }: SeriesSettin
       </div>
       <p>{series.name}</p>
     </div>
-    <div className="flex flex-row flex-1 justify-end gap-2">
-      <Badge variant="secondary">
-        {series.data?.meta.exchangeName}
-      </Badge>
-      <Badge variant="secondary">
+    <div className="flex flex-row flex-1 justify-end items-center gap-2">
+      <p className="text-sm">
+        {exchangeName}
+      </p>
+      <p className="text-sm">
         {series.data?.meta.currency}
-      </Badge>
-      <Badge variant="secondary">
-        {series.data?.meta.instrumentType}
-      </Badge>
+      </p>
+      <p className="text-sm">
+        {series.symbol.quoteType}
+      </p>
       <Select value={series.config.color.name} onValueChange={updateColor}>
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-[140px]">
           <SelectValue placeholder="Color" />
         </SelectTrigger>
         <SelectContent>

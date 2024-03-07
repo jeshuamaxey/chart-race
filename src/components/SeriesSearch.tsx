@@ -58,7 +58,7 @@ const SeriesSearch = ({onChange, excludedSymbols = []}: SeriesSearchProps) => {
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0">
         <Command>
-          <CommandInput placeholder="Search..." onValueChange={handleQueryChange} />
+          <CommandInput placeholder="APPL, TSLA, MSFT..." onValueChange={handleQueryChange} />
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup>
             {searchResults.map((result) => (
