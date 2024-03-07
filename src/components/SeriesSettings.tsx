@@ -33,17 +33,26 @@ const SeriesSettings = ({ series, onRemoveSeries, onSeriesUpdate }: SeriesSettin
       </div>
       <p>{series.name}</p>
     </div>
-    <div className="flex flex-row flex-1 justify-end">
-    <Select value={series.config.color.name} onValueChange={updateColor}>
-      <SelectTrigger className="w-[180px]">
-        <SelectValue placeholder="Color" />
-      </SelectTrigger>
-      <SelectContent>
-        {colors.map(c =>  <SelectItem key={c.name} value={c.name}>
-          <Badge variant="outline" style={{background: c.hex}}>{c.name}</Badge>
-        </SelectItem> )}
-      </SelectContent>
-    </Select>
+    <div className="flex flex-row flex-1 justify-end gap-2">
+      <Badge variant="secondary">
+        {series.data?.meta.exchangeName}
+      </Badge>
+      <Badge variant="secondary">
+        {series.data?.meta.currency}
+      </Badge>
+      <Badge variant="secondary">
+        {series.data?.meta.instrumentType}
+      </Badge>
+      <Select value={series.config.color.name} onValueChange={updateColor}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Color" />
+        </SelectTrigger>
+        <SelectContent>
+          {colors.map(c =>  <SelectItem key={c.name} value={c.name}>
+            <Badge variant="outline" style={{background: c.hex}}>{c.name}</Badge>
+          </SelectItem> )}
+        </SelectContent>
+      </Select>
 
       <Button size="sm" variant="outline" onClick={(ev) => onRemoveSeries(series)}>
         <Trash size={14} />
