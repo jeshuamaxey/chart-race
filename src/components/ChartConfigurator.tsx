@@ -1,5 +1,6 @@
 "use client";
 
+import dummyData from "./dummyData.json";
 import { useMemo, useState } from "react";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
@@ -103,7 +104,10 @@ const ChartConfigurator = () => {
           <div className="lg:w-1/2">
             <Card>
               <CardHeader>
-                <CardTitle>Stocks</CardTitle>
+                <div className="flex flex-row justify-between items-center">
+                  <CardTitle>Stocks</CardTitle>
+                  <Button size="sm" className="bg-pink-500" onClick={() => setSeries(dummyData as unknown as Series[])}>Load dummy data</Button>
+                </div>
                 <CardDescription>Add, remove and edit the data in your chart</CardDescription>
               </CardHeader>
               <CardContent>
@@ -221,11 +225,6 @@ const ChartConfigurator = () => {
           <CardContent>
 
             { renderChart && <AnimatedLineChart series={series} dateRange={dateRange} lookAhead={lookAhead} duration={1000*durationInSeconds} chartType={chartType}/> }
-            {/* <code>
-              <pre>
-                {JSON.stringify(chartData, null, 2)}
-              </pre>
-            </code> */}
           </CardContent>
         </Card>
         </div>
