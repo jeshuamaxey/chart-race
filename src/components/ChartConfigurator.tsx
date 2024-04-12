@@ -1,18 +1,15 @@
 "use client";
 
 import dummyData from "./dummyData.json";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Series, SymbolSearchResult } from "@/types";
 import SeriesSettings from "./SeriesSettings";
 import SeriesSearch from "./SeriesSearch";
@@ -20,14 +17,27 @@ import colors from "@/lib/colors";
 import { Input } from "./ui/input";
 import yf from "@/lib/yahooFinance";
 import AnimatedLineChart from "./AnimatedLineChart";
+import { Badge } from "./ui/badge";
+import { Check, Code } from "lucide-react";
+import { Switch } from "./ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
 
 const YEAR = 365 * 24 * 60 * 60 * 1000;
 
 const ChartConfigurator = () => {
+  const [rebase, setRebase] = useState(false)
   const [chartType, setChartType] = useState<'line' | 'area'>('line')
-  const [durationInSeconds, setDurationInSeconds] = useState(3)
+  const [dataNeedsReload, setDataNeedsReload] = useState(true)
+  const [durationInSeconds, setDurationInSeconds] = useState(10)
   const [lookAhead, setLookAhead] = useState(31); // days
-  const [symbol, setSymbol] = useState<SymbolSearchResult | null>(null);
   const [series, setSeries] = useState<Series[]>([]);
   const [dateRange, setDateRange] = useState<[string, string]>([
     new Date(new Date().getTime() - YEAR).toISOString().split("T")[0], // today - 1 year
@@ -35,10 +45,10 @@ const ChartConfigurator = () => {
   ])
   const [remainingColors, setRemainingColors] = useState(colors)
 
-  const addNewSeries = () => {
+  const addNewSeries = (symbol: SymbolSearchResult) => {
     if(!symbol) return;
+
     const index = Math.floor(Math.random()*remainingColors.length)
-    console.log({index, remainingColors})
     const color = remainingColors[index]
     const newSeries = {
       name: symbol.shortname,
@@ -51,6 +61,7 @@ const ChartConfigurator = () => {
     const newRemainingColors = [...remainingColors]
     newRemainingColors.splice(index, 1)
     setRemainingColors(newRemainingColors)
+    setDataNeedsReload(true)
   }
 
   const updateDateRange = (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,6 +71,7 @@ const ChartConfigurator = () => {
     } else if(name === 'enddate') {
       setDateRange([dateRange[0], new Date(value).toISOString().split("T")[0]])
     }
+    setDataNeedsReload(true)
   }
 
   const loadChartData = ()=> {
@@ -68,7 +80,6 @@ const ChartConfigurator = () => {
       console.log('loading data for', s.symbol.symbol)
 
       try {
-
         const res = await yf.chart(s.symbol.symbol, {
           startDate: dateRange[0],
           endDate: dateRange[1]
@@ -82,9 +93,10 @@ const ChartConfigurator = () => {
           }
         }
         return series
-      }))
-      
-      console.log('loaded data for', s.symbol.symbol, res)
+        }))
+        
+        console.log('loaded data for', s.symbol.symbol, res)
+        setDataNeedsReload(false)
       } catch (e) {
         console.error('error loading data for', s.symbol.symbol, e)
       }
@@ -92,30 +104,24 @@ const ChartConfigurator = () => {
     })
   }
 
-  const addButtonDisabled = !symbol || series.find((s) => s.symbol.symbol === symbol.symbol) !== undefined;
-
-
   // CHART
   const renderChart = series.some((s) => s.data !== undefined)
 
   return <div className="p-4">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="lg:w-1/2">
+      <div className="flex gap-4">
+      <div className="lg:w-1/3 flex flex-col gap-4">
+        <Tabs defaultValue="stockdata">
+          <TabsList>
+            <TabsTrigger value="stockdata">Stocks</TabsTrigger>
+            <TabsTrigger value="daterange">Date range</TabsTrigger>
+            <TabsTrigger value="chartconfig">Chart style</TabsTrigger>
+          </TabsList>
+          <TabsContent value="stockdata">
             <Card>
-              <CardHeader>
-                <div className="flex flex-row justify-between items-center">
-                  <CardTitle>Stocks</CardTitle>
-                  <Button size="sm" className="bg-pink-500" onClick={() => setSeries(dummyData as unknown as Series[])}>Load dummy data</Button>
-                </div>
-                <CardDescription>Add, remove and edit the data in your chart</CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-4">
                 <div className="div flex flex-col gap-2 pb-4">
-                  <Label htmlFor="newSeries">New series name</Label>
                   <div className="flex w-full items-center space-x-2">
-                    <SeriesSearch onChange={setSymbol} excludedSymbols={series.map(s => s.symbol.symbol)} />
-                    <Button disabled={addButtonDisabled} onClick={addNewSeries}>Add Series</Button>
+                    <SeriesSearch onChange={addNewSeries} excludedSymbols={series.map(s => s.symbol.symbol)} />
                   </div>
                 </div>
 
@@ -135,12 +141,12 @@ const ChartConfigurator = () => {
                   })}
                 </div>
               </CardContent>
+            </Card>
+          </TabsContent>
 
-              <CardHeader>
-                <CardTitle>Date range</CardTitle>
-                <CardDescription>Set the time span</CardDescription>
-              </CardHeader>
-              <CardContent>
+          <TabsContent value="daterange">
+            <Card>
+              <CardContent className="pt-4">
                 <div className="div flex flex-col gap-2 pb-4">
                   <Label htmlFor="startdate">Start date</Label>
                   <div className="flex w-full items-center space-x-2">
@@ -163,20 +169,19 @@ const ChartConfigurator = () => {
                   </div>
                 </div>
               </CardContent>
-
-              <CardFooter>
-                <Button disabled={series.length === 0} onClick={loadChartData}>Load chart data</Button>
-              </CardFooter>
             </Card>
-          </div>
-
-          <div className="lg:w-1/2">
+          </TabsContent>
+          
+          <TabsContent value="chartconfig">
             <Card>
-              <CardHeader>
-                <CardTitle>Chart config</CardTitle>
-                <CardDescription>Tweak how your chart behaves</CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-4">
+                <div className="div flex flex-col gap-2 pb-4">
+                  <Label htmlFor="rebase">Rebase stock value</Label>
+                  <Switch
+                    checked={rebase}
+                    onCheckedChange={() => setRebase(!rebase)}
+                  />
+                </div>
 
                 <div className="div flex flex-col gap-2 pb-4">
                   <Label htmlFor="lookahead">Lookahead</Label>
@@ -213,21 +218,46 @@ const ChartConfigurator = () => {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex flex-row justify-between items-center">
+          {dataNeedsReload ? (
+            <Button disabled={series.length === 0} onClick={loadChartData}>Load chart data</Button>
+          ) : (
+            <Badge className="bg-green-500"><Check size={14} className="mr-2" />Data loaded</Badge>
+          )}
         </div>
+      </div>
 
-        <div className="w-full">
+      <div className="lg:w-2/3">
+        <div className="h-12 flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger><Code /></DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Debug</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setSeries(dummyData as unknown as Series[])}>Load dummy data</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+        </div>
         <Card>
-          <CardHeader>
-            <CardTitle>Preview</CardTitle>
-            <CardDescription>Preview your animated chart</CardDescription>
-          </CardHeader>
-          <CardContent>
-
-            { renderChart && <AnimatedLineChart series={series} dateRange={dateRange} lookAhead={lookAhead} duration={1000*durationInSeconds} chartType={chartType}/> }
+          <CardContent className="pt-4">
+            { renderChart && (
+              <AnimatedLineChart
+                series={series}
+                dateRange={dateRange}
+                lookAhead={lookAhead}
+                duration={1000*durationInSeconds}
+                chartType={chartType}
+                rebase={rebase}
+                />
+              )}
+            { !renderChart && <p className="text-center my-16">Choose some stocks to see a preview</p>}
           </CardContent>
         </Card>
-        </div>
+      </div>
       </div>
   </div>
 }

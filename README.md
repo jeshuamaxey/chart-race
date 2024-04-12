@@ -2,6 +2,25 @@
 
 https://chart-race.vercel.app/
 
+## Todos
+
+- [x] export animation as mp4
+- [ ] basics
+  - [ ] set line color
+  - [ ] 60fps
+  - [ ] offscreen rendering
+- [ ] chart features
+  - [x] returns since data (rebase stock price to day 1)
+  - [ ] date top right corner
+  - [ ] chart title + subtitle
+  - [ ] timed annotations top left
+  - [ ] watermark
+  - [ ] series title at the tip of each line
+
+## Bugs
+
+- [ ] searching bumble doesn't render any results
+
 ## Getting Started
 
 Running the development server:

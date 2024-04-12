@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from "react"
 import { AxisOptions, Chart } from "react-charts"
 import { Button } from "./ui/button"
 import { Slider } from "./ui/slider"
-import { X, Pause, Play, RotateCcw, Video, ArrowRightCircle } from "lucide-react"
+import { X, Pause, Play, RotateCcw, Video, Download } from "lucide-react"
 import { addDays, differenceInDays } from "date-fns"
 import setupRecording from "@/lib/recording";
 
@@ -12,17 +12,34 @@ const USDollar = new Intl.NumberFormat('en-US', {
   currency: 'USD',
 });
 
+const Percent = new Intl.NumberFormat('en-US', {
+  style: 'percent',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0
+});
+
+type DailyPrice = {
+  date: string,
+  close: number,
+}
+
+type ChartSeries = {
+  label: string,
+  data: DailyPrice[]
+}
+
 type AnimatedLineChartProps = {
   series: Series[]
   dateRange: [string, string]
   lookAhead: number
   duration: number
-  chartType?: 'line' | 'area'
+  chartType?: 'line' | 'area',
+  rebase?: boolean
 }
 
-const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 'line'}: AnimatedLineChartProps) => {
+const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 'line', rebase = false}: AnimatedLineChartProps) => {
   const DURATION_MS = duration || 1
-  const PIXEL_RATIO = Math.min(devicePixelRatio, 2);
+  const PIXEL_RATIO = Math.min(devicePixelRatio, 4);
   const WIDTH = 1080
   const HEIGHT = 1080
 
@@ -43,7 +60,6 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
   // this is a time stamp of the previous frame in the current animation
   const previousTimeRef = useRef<number | undefined>();
 
-  // lib
   const {
     canvas,
     recordFrame,
@@ -56,8 +72,6 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
     width: WIDTH,
     height: HEIGHT,
   })
-  // end lib
-
 
   const play = () => {
     if(elapsed >= DURATION_MS) {
@@ -125,11 +139,6 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
     }
   }
 
-  const handleSliderChange = ([n]: number[]) => {
-    setElapsed(n*DURATION_MS)
-    pause()
-  }
-
   const startRecording = async () => {
     console.log("startRecording")
 
@@ -161,30 +170,22 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
     reset()
   }
 
-  type DailyPrice = {
-    date: string,
-    close: number,
-  }
-
-  type ChartSeries = {
-    label: string,
-    data: DailyPrice[]
-  }
-
   const daysSpan = differenceInDays(dateRange[1], dateRange[0])
   const daysElapsed = Math.round(daysSpan*elapsed/DURATION_MS)
   const maxDate = addDays(dateRange[0], daysElapsed).toISOString().split("T")[0]
 
   const chartData: ChartSeries[] = series.map((s) => {
     if(!s.data) return {label: s.symbol.shortname, data: []}
+    const rebaseDenominator = rebase ? s.data.quotes[0].close : 1
     return {
       label: s.symbol.shortname,
+      color: s.config.color.hex,
       data: s.data.quotes
         .filter((d: NonNullable<Series["data"]>["quotes"], i: number) => {
           return i <= Math.max(lookAhead, daysElapsed)
         })
         .map((d: NonNullable<Series["data"]>["quotes"], i: number) => {
-          const close = d.date <= maxDate || i === 0 ? d.close : null
+          const close = d.date <= maxDate || i === 0 ? d.close/rebaseDenominator : null
           return {
             date: d.date,
             close
@@ -192,6 +193,8 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
         })
     }
   })
+
+  console.log({chartData})
 
   const primaryAxis = useMemo(
     (): AxisOptions<DailyPrice> => ({
@@ -207,12 +210,17 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
         getValue: datum => datum.close,
         elementType: chartType,
         formatters: {
-          scale: (value: number) => USDollar.format(value),
+          scale: (value: number) => rebase ? Percent.format(value) : USDollar.format(value),
         }
       },
     ],
-    [chartType]
+    [chartType, rebase]
   )
+
+  const elapseReadoutMinutes = Math.floor(elapsed / 60000)
+  const elapseReadoutSeconds = Math.floor((elapsed % 60000) / 1000)
+  const durationReadoutMinutes = Math.floor(duration / 60000)
+  const durationReadoutSeconds = Math.floor((duration % 60000) / 1000)
 
   return (
     <div className="flex flex-col gap-2">
@@ -229,21 +237,19 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
           />
       </div>
 
-
       <div className="w-full flex flex-row gap-2">
-        <Button disabled={recording} size="sm" onClick={playing ? () => pause() : () => play()}>{playing ? <Pause /> : <Play />}</Button>
-        <Button disabled={recording} size="sm" onClick={reset}><RotateCcw /></Button>
-
-        <Slider disabled
-          onValueChange={handleSliderChange}
-          value={[elapsed/DURATION_MS]} min={0} max={1} step={0.001} />
-
-        <Button size="sm" onClick={recording ? () => cancelRecording : startRecording}>
+        <Button disabled={recording} variant="ghost" size="sm" onClick={playing ? () => pause() : () => play()}>{playing ? <Pause size={16} /> : <Play size={16} />}</Button>
+        <Button disabled={recording} variant="ghost" size="sm" onClick={reset}><RotateCcw size={16} /></Button>
+        <Button variant="ghost" size="sm" onClick={recording ? () => cancelRecording : startRecording}>
           {recording
-            ? <><X />&nbsp;Cancel</>
-            : <><Video />&nbsp;Record</>
+            ? <><X size={16}/></>
+            : <><Download size={16} /></>
           }
         </Button>
+        <Slider disabled value={[elapsed/DURATION_MS]} min={0} max={1} step={0.001} />
+        <p className="w-48 self-center text-right text-xs">
+          {elapseReadoutMinutes.toString().padStart(2, '0')}:{elapseReadoutSeconds.toString().padStart(2, '0')} / {durationReadoutMinutes.toString().padStart(2, '0')}:{durationReadoutSeconds.toString().padStart(2, '0')}
+        </p>
       </div>
 
       <div ref={renderRef} className=""></div>

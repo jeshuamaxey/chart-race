@@ -3,7 +3,7 @@ import { Recorder, RecorderStatus } from "canvas-record";
 // @ts-ignore
 import createCanvasContext from "canvas-context";
 // @ts-ignore
-import { AVC } from "media-codecs";
+import { AVC, H264MP4 } from "media-codecs";
 import { Canvg } from 'canvg';
 
 type SetupRecordingOptions = {
@@ -36,7 +36,6 @@ const setupRecording = ({
   Object.assign(canvas.style, {
     width: `${width*pixelRatio}px`,
     height: `${height*pixelRatio}px`,
-    // border: "1px solid green",
   });
 
   // Write the current svg cart to the canvas
