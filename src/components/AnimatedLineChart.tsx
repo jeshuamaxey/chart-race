@@ -233,6 +233,7 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
             tooltip: false,
             primaryCursor: false,
             secondaryCursor: false,
+            getSeriesStyle: (series) => ({color: series.originalSeries.color}),
           }}
           />
       </div>

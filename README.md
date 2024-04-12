@@ -6,7 +6,7 @@ https://chart-race.vercel.app/
 
 - [x] export animation as mp4
 - [ ] basics
-  - [ ] set line color
+  - [x] set line color
   - [ ] 60fps
   - [ ] offscreen rendering
 - [ ] chart features
@@ -16,10 +16,12 @@ https://chart-race.vercel.app/
   - [ ] timed annotations top left
   - [ ] watermark
   - [ ] series title at the tip of each line
+- [ ] UX
+  - [ ] load examples (FAANG, Oil giants, Buffet's portfolio stars)
 
 ## Bugs
 
-- [ ] searching bumble doesn't render any results
+- [x] searching bumble doesn't render any results
 
 ## Getting Started
 
