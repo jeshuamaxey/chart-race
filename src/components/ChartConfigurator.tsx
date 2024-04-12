@@ -18,7 +18,7 @@ import { Input } from "./ui/input";
 import yf from "@/lib/yahooFinance";
 import AnimatedLineChart from "./AnimatedLineChart";
 import { Badge } from "./ui/badge";
-import { Check, Code } from "lucide-react";
+import { Check, Code, RefreshCw } from "lucide-react";
 import { Switch } from "./ui/switch";
 import {
   DropdownMenu,
@@ -29,13 +29,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-
 const YEAR = 365 * 24 * 60 * 60 * 1000;
 
 const ChartConfigurator = () => {
   const [rebase, setRebase] = useState(false)
   const [chartType, setChartType] = useState<'line' | 'area'>('line')
   const [dataNeedsReload, setDataNeedsReload] = useState(true)
+  const [loadingData, setLoadingData] = useState(false)
   const [durationInSeconds, setDurationInSeconds] = useState(10)
   const [lookAhead, setLookAhead] = useState(31); // days
   const [series, setSeries] = useState<Series[]>([]);
@@ -76,6 +76,7 @@ const ChartConfigurator = () => {
 
   const loadChartData = ()=> {
     console.log('loading chart data', series, dateRange)
+    setLoadingData(true)
     series.forEach(async (s) => {
       console.log('loading data for', s.symbol.symbol)
 
@@ -97,10 +98,11 @@ const ChartConfigurator = () => {
         
         console.log('loaded data for', s.symbol.symbol, res)
         setDataNeedsReload(false)
+        setLoadingData(false)
       } catch (e) {
         console.error('error loading data for', s.symbol.symbol, e)
+        setLoadingData(false)
       }
-
     })
   }
 
@@ -109,7 +111,7 @@ const ChartConfigurator = () => {
 
   return <div className="p-4">
       <div className="flex gap-4">
-      <div className="lg:w-1/3 flex flex-col gap-4">
+      <div className="w-1/3 flex flex-col gap-4">
         <Tabs defaultValue="stockdata">
           <TabsList>
             <TabsTrigger value="stockdata">Stocks</TabsTrigger>
@@ -119,12 +121,6 @@ const ChartConfigurator = () => {
           <TabsContent value="stockdata">
             <Card>
               <CardContent className="pt-4">
-                <div className="div flex flex-col gap-2 pb-4">
-                  <div className="flex w-full items-center space-x-2">
-                    <SeriesSearch onChange={addNewSeries} excludedSymbols={series.map(s => s.symbol.symbol)} />
-                  </div>
-                </div>
-
                 <div className="flex flex-col gap-2 w-full">
                   {series.length === 0 && <p>No series added yet</p>}
                   {series.map((s, i) => {
@@ -139,6 +135,8 @@ const ChartConfigurator = () => {
                       onRemoveSeries={(seriesToRm) => setSeries(series.filter((s) => s.name !== seriesToRm.name))}
                       />
                   })}
+
+                  <SeriesSearch onChange={addNewSeries} excludedSymbols={series.map(s => s.symbol.symbol)} />
                 </div>
               </CardContent>
             </Card>
@@ -223,14 +221,16 @@ const ChartConfigurator = () => {
 
         <div className="flex flex-row justify-between items-center">
           {dataNeedsReload ? (
-            <Button disabled={series.length === 0} onClick={loadChartData}>Load chart data</Button>
+            <Button disabled={series.length === 0 || loadingData} onClick={loadChartData}>
+              {loadingData ? <RefreshCw className="animate-spin" /> : <span>Load chart data</span>}
+            </Button>
           ) : (
             <Badge className="bg-green-500"><Check size={14} className="mr-2" />Data loaded</Badge>
           )}
         </div>
       </div>
 
-      <div className="lg:w-2/3">
+      <div className="w-2/3">
         <div className="h-12 flex justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger><Code /></DropdownMenuTrigger>
