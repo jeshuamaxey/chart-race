@@ -1,5 +1,8 @@
-import { Recorder, RecorderStatus, Encoders } from "canvas-record";
+// @ts-ignore
+import { Recorder, RecorderStatus } from "canvas-record";
+// @ts-ignore
 import createCanvasContext from "canvas-context";
+// @ts-ignore
 import { AVC } from "media-codecs";
 import { Canvg } from 'canvg';
 
@@ -8,8 +11,8 @@ import { useMemo, useRef, useState } from "react"
 import { AxisOptions, Chart } from "react-charts"
 import { Button } from "./ui/button"
 import { Slider } from "./ui/slider"
-import { X, Pause, Play, RotateCcw, Video } from "lucide-react"
-import { addDays, differenceInDays, set } from "date-fns"
+import { X, Pause, Play, RotateCcw, Video, ArrowRightCircle } from "lucide-react"
+import { addDays, differenceInDays } from "date-fns"
 
 const USDollar = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -26,6 +29,11 @@ type AnimatedLineChartProps = {
 
 const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 'line'}: AnimatedLineChartProps) => {
   const DURATION_MS = duration || 1
+  const PIXEL_RATIO = Math.min(devicePixelRatio, 2);
+  const WIDTH = 1080
+  const HEIGHT = 1080
+
+  // console.log({ DURATION_MS, WIDTH, HEIGHT, PIXEL_RATIO })
   
   const chartRef = useRef<HTMLDivElement | null>(null)
   const renderRef = useRef<HTMLDivElement | null>(null)
@@ -43,6 +51,101 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
   const clockAdjustmentRef = useRef<number>(0);
   // this is a time stamp of the previous frame in the current animation
   const previousTimeRef = useRef<number | undefined>();
+
+  // lib
+  const { context, canvas }: {
+    context: CanvasRenderingContext2D;
+    canvas: HTMLCanvasElement;
+  } = createCanvasContext("2d", {
+    width: WIDTH * PIXEL_RATIO,
+    height: HEIGHT * PIXEL_RATIO,
+    contextAttributes: { willReadFrequently: true },
+  });
+
+  Object.assign(canvas.style, {
+    width: `${WIDTH*PIXEL_RATIO}px`,
+    height: `${HEIGHT*PIXEL_RATIO}px`,
+    // border: "1px solid green",
+  });
+
+  // Write the current svg cart to the canvas
+  async function canvasRender() {
+    console.log("canvasRender")
+    if(!chartRef.current) return
+
+    const svg = chartRef.current.querySelector('svg')?.cloneNode(true) as SVGSVGElement
+
+    if(!svg) return
+
+    svg.setAttribute('viewbox', `0 0 ${WIDTH*PIXEL_RATIO} ${HEIGHT*PIXEL_RATIO}`);
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+
+    console.log("canvasRender :: should render")
+    const offsetX = 54;
+    const offsetY = 11;
+
+    const svgBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    svgBg.setAttribute("x", (-1*offsetX).toString());
+    svgBg.setAttribute("y", (-1*offsetY).toString());
+    svgBg.setAttribute("width", WIDTH.toString());
+    svgBg.setAttribute("height", HEIGHT.toString());
+    svgBg.setAttribute("fill", "white");
+
+    svg.prepend(svgBg);
+
+
+    const debugSvgStr = `
+      <svg xmlns="http://www.w3.org/2000/svg" background="hotpink" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
+        <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="hotpink" />
+        <rect x="54" y="11" width="${100}" height="${100}" fill="red" />
+      </svg>
+    `
+
+    const svgStr = new XMLSerializer().serializeToString(svg);
+
+    const v = Canvg.fromString(context, svgStr, {
+      offsetX,
+      offsetY,
+      ignoreClear: true,
+    });
+    await v.render();
+  }
+
+  const canvasRecorder: Recorder = new Recorder(context, {
+    name: "chart-race",
+    duration: 1000*DURATION_MS,
+    encoderOptions: {
+      codec: AVC.getCodec({ profile: "Main", level: "5.2" }),
+    },
+    onStatusChange: (status: RecorderStatus) => {
+      switch (status) {
+        case RecorderStatus.Initializing:
+          console.log(`${status || "?"} :: Recording initializing`);
+          setRecording(() => true);
+          break;
+        case RecorderStatus.Recording:
+          console.log(`${status || "?"} :: Recording started`);
+          setRecording(() => true);
+          break;
+        case RecorderStatus.Stopped:
+          console.log(`${status || "?"} :: Recording stopped`);
+          setRecording(() => false);
+          break;
+        case RecorderStatus.Stopping:
+          console.log(`${status || "?"} :: Recording stopping`);
+          setRecording(() => false);
+          break;
+      }
+    }
+  });
+  
+  const recordFrame = async () => {
+    console.log("recordFrame")
+    canvasRender();
+    if (canvasRecorder.status !== RecorderStatus.Recording) return;
+    await canvasRecorder.step();
+  }
+  // end lib
 
 
   const play = () => {
@@ -95,12 +198,13 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
     }
     
     const done = time - startTimeRef.current - clockAdjustmentRef.current > DURATION_MS;
+    previousTimeRef.current = time;
 
     if(done) {
       onComplete && onComplete()
       pause()
-    } else {
-      previousTimeRef.current = time;
+    }
+    else {
       if(recordFrame) {
         recordFrame()
         requestRef.current = requestAnimationFrame((time) => tick(time, recordFrame, onComplete));
@@ -108,7 +212,6 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
         requestRef.current = requestAnimationFrame(tick);
       }
     }
-
   }
 
   const handleSliderChange = ([n]: number[]) => {
@@ -117,82 +220,16 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
   }
 
   const startRecording = async () => {
-    console.log("startRecording", chartRef)
+    console.log("startRecording")
 
     if(!chartRef.current || !renderRef.current || recording) {
       return
     }
 
-    // Setup
-    const pixelRatio = Math.min(devicePixelRatio, 2);
-    const width = 1080 // chartRef.current.querySelector('svg')?.getBoundingClientRect().width
-    const height = 1080 //chartRef.current.querySelector('svg')?.getBoundingClientRect().height;
-
-    if(!width || !height) {
-      console.log("width or height not found", {width, height})
-      return
-    }
-
-    const { context, canvas } = createCanvasContext("2d", {
-      width: width * pixelRatio,
-      height: height * pixelRatio,
-      contextAttributes: { willReadFrequently: true },
-    });
-    context.fillStyle = "white";
-    context.fillRect(0, 0, width, height);
-    Object.assign(canvas.style, { width: `${width}px`, height: `${height}px` });
-
     renderRef.current.innerHTML = "";
     renderRef.current.appendChild(canvas);
 
-    // Write the current svg cart to the canvas
-    async function canvasRender() {
-      if(!chartRef.current) return
-
-      const svg = chartRef.current.querySelector('svg')
-
-      svg?.style.setProperty('background', `white`);
-
-      if(!svg) return
-
-      const v = await Canvg.from(context, svg.outerHTML);
-      await v.render();
-    }
-    
-    const canvasRecorder: Recorder = new Recorder(context, {
-      name: "chart-race",
-      duration: 1000*DURATION_MS,
-      encoderOptions: {
-        codec: AVC.getCodec({ profile: "Main", level: "5.2" }),
-      },
-      onStatusChange: (status: RecorderStatus) => {
-        switch (status) {
-          case RecorderStatus.Initializing:
-            console.log(`${status || "?"} :: Recording initializing`);
-            setRecording(() => true);
-            break;
-          case RecorderStatus.Recording:
-            console.log(`${status || "?"} :: Recording started`);
-            setRecording(() => true);
-            break;
-          case RecorderStatus.Stopped:
-            console.log(`${status || "?"} :: Recording stopped`);
-            setRecording(() => false);
-            break;
-          case RecorderStatus.Stopping:
-            console.log(`${status || "?"} :: Recording stopping`);
-            setRecording(() => false);
-            break;
-        }
-      }
-    });
-    
-    const recordFrame = async () => {
-      console.log("recordFrame")
-      canvasRender();
-      if (canvasRecorder.status !== RecorderStatus.Recording) return;
-      await canvasRecorder.step();
-    }
+    reset();
     
     // Start and encode frame 0
     await canvasRecorder.start();
@@ -206,8 +243,11 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
     requestRef.current = requestAnimationFrame((time) => tick(time, recordFrame, onComplete));
   }
 
-  const cancelRecording = () => {
+  const cancelRecording = async () => {
     setRecording(false)
+
+    await canvasRecorder.stop();
+    reset()
   }
 
   type DailyPrice = {
@@ -271,6 +311,9 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
             data: chartData,
             primaryAxis,
             secondaryAxes,
+            tooltip: false,
+            primaryCursor: false,
+            secondaryCursor: false,
           }}
           />
       </div>
@@ -291,7 +334,8 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
           }
         </Button>
       </div>
-      <div ref={renderRef} className="border border-red-500"></div>
+
+      <div ref={renderRef} className=""></div>
     </div>
   )
 }
