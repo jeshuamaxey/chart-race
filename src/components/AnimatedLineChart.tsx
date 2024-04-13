@@ -146,9 +146,6 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
       return
     }
 
-    renderRef.current.innerHTML = "";
-    renderRef.current.appendChild(canvas);
-
     reset();
     
     // Start and encode frame 0

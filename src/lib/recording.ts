@@ -3,8 +3,9 @@ import { Recorder, RecorderStatus } from "canvas-record";
 // @ts-ignore
 import createCanvasContext from "canvas-context";
 // @ts-ignore
-import { AVC, H264MP4 } from "media-codecs";
+import { AVC } from "media-codecs";
 import { Canvg } from 'canvg';
+import { off } from "process";
 
 type SetupRecordingOptions = {
   chartRef: React.MutableRefObject<HTMLDivElement | null>;
@@ -31,11 +32,7 @@ const setupRecording = ({
     width: width * pixelRatio,
     height: height * pixelRatio,
     contextAttributes: { willReadFrequently: true },
-  });
-
-  Object.assign(canvas.style, {
-    width: `${width*pixelRatio}px`,
-    height: `${height*pixelRatio}px`,
+    offscreen: true
   });
 
   // Write the current svg cart to the canvas
@@ -84,6 +81,7 @@ const setupRecording = ({
   const canvasRecorder: Recorder = new Recorder(context, {
     name: "chart-race",
     duration: 1000*durationMs,
+    frameRate: 60,
     encoderOptions: {
       codec: AVC.getCodec({ profile: "Main", level: "5.2" }),
     },
