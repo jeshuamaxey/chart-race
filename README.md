@@ -18,6 +18,7 @@ https://chart-race.vercel.app/
   - [ ] series title at the tip of each line
 - [ ] UX
   - [ ] load examples (FAANG, Oil giants, Buffet's portfolio stars)
+  - [ ] fix first frame of video
 
 ## Bugs
 

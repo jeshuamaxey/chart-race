@@ -68,6 +68,7 @@ const SeriesSearch = ({onChange, excludedSymbols = []}: SeriesSearchProps) => {
         <div className="flex-1 flex flex-col gap-4 py-4">
           <Input
             id="query"
+            placeholder="APPL, MSFT, TSLA..."
             value={query}
             onChange={(e) => {setQuery(e.target.value); handleQueryChange(e.target.value)}}
           />
