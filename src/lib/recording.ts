@@ -1,11 +1,10 @@
 // @ts-ignore
-import { Recorder, RecorderStatus } from "canvas-record";
+import { Recorder, RecorderStatus, Encoders } from "canvas-record";
 // @ts-ignore
 import createCanvasContext from "canvas-context";
 // @ts-ignore
 import { AVC } from "media-codecs";
 import { Canvg } from 'canvg';
-import { off } from "process";
 
 type SetupRecordingOptions = {
   chartRef: React.MutableRefObject<HTMLDivElement | null>;
@@ -14,7 +13,12 @@ type SetupRecordingOptions = {
   pixelRatio: number;
   width: number;
   height: number;
+  padding?: number;
+  offscreen?: boolean;
 }
+
+const OFFSET_X = -54;
+const OFFSET_Y = -11;
 
 const setupRecording = ({
   chartRef,
@@ -23,43 +27,48 @@ const setupRecording = ({
   pixelRatio,
   width,
   height,
+  padding = 0,
+  offscreen = true
 }: SetupRecordingOptions) => {
+
+  const w = width// * pixelRatio;
+  const h = height// * pixelRatio;
 
   const { context, canvas }: {
     context: CanvasRenderingContext2D;
     canvas: HTMLCanvasElement;
   } = createCanvasContext("2d", {
-    width: width * pixelRatio,
-    height: height * pixelRatio,
+    width: w,
+    height: h,
     contextAttributes: { willReadFrequently: true },
-    offscreen: true
+    offscreen
   });
 
-  // Write the current svg cart to the canvas
+  // Write the current svg chart to the canvas
   async function canvasRender() {
-    console.log("canvasRender")
     if(!chartRef.current) return
 
     const svg = chartRef.current.querySelector('svg')?.cloneNode(true) as SVGSVGElement
 
     if(!svg) return
 
-    svg.setAttribute('viewbox', `0 0 ${width*pixelRatio} ${height*pixelRatio}`);
+    svg.setAttribute('viewbox', `0 0 ${w} ${h}`);
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
 
-    console.log("canvasRender :: should render")
-    const offsetX = 54;
-    const offsetY = 11;
+    const offsetX = OFFSET_X + padding;
+    const offsetY = OFFSET_X + padding;
+    
+    // console.log("canvasRender :: offsetX", offsetX)
+    // console.log("canvasRender :: offsetY", offsetY)
 
     const svgBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    svgBg.setAttribute("x", (-1*offsetX).toString());
-    svgBg.setAttribute("y", (-1*offsetY).toString());
-    svgBg.setAttribute("width", width.toString());
-    svgBg.setAttribute("height", height.toString());
+    svgBg.setAttribute("x", (OFFSET_X-padding).toString());
+    svgBg.setAttribute("y", (OFFSET_Y-padding).toString());
+    svgBg.setAttribute("width", w.toString());
+    svgBg.setAttribute("height", h.toString());
     svgBg.setAttribute("fill", "white");
 
     svg.prepend(svgBg);
-
 
     const debugSvgStr = `
       <svg xmlns="http://www.w3.org/2000/svg" background="hotpink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
@@ -85,6 +94,13 @@ const setupRecording = ({
     encoderOptions: {
       codec: AVC.getCodec({ profile: "Main", level: "5.2" }),
     },
+    // encoder: new Encoders.H264MP4Encoder({
+    //   debug: true,
+    //   speed: 0,
+    //   frameRate: 60,
+    //   // profile: "Main",
+    //   // level: "5.2"
+    // }),
     onStatusChange: (status: RecorderStatus) => {
       switch (status) {
         case RecorderStatus.Initializing:
@@ -108,7 +124,6 @@ const setupRecording = ({
   });
 
   const recordFrame = async () => {
-    console.log("recordFrame")
     canvasRender();
     if (canvasRecorder.status !== RecorderStatus.Recording) return;
     await canvasRecorder.step();

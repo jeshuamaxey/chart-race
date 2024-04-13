@@ -2,7 +2,6 @@
 
 import dummyData from "./dummyData.json";
 import { useState } from "react";
-import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import {
   Card,
@@ -17,8 +16,7 @@ import colors from "@/lib/colors";
 import { Input } from "./ui/input";
 import yf from "@/lib/yahooFinance";
 import AnimatedLineChart from "./AnimatedLineChart";
-import { Badge } from "./ui/badge";
-import { Check, Code, RefreshCw } from "lucide-react";
+import { Terminal } from "lucide-react";
 import { Switch } from "./ui/switch";
 import {
   DropdownMenu,
@@ -28,6 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import DataIndicator from "./DataIndicator";
 
 const YEAR = 365 * 24 * 60 * 60 * 1000;
 
@@ -43,7 +42,11 @@ const ChartConfigurator = () => {
     new Date(new Date().getTime() - YEAR).toISOString().split("T")[0], // today - 1 year
     new Date().toISOString().split("T")[0]                             // today
   ])
+  const [chartPadding, setChartPadding] = useState(10)
   const [remainingColors, setRemainingColors] = useState(colors)
+  const [showRender, setShowRender] = useState(false)
+  const [chartTitle, setChartTitle] = useState('Chart race')
+  const [showDate, setShowDate] = useState(true)
 
   const addNewSeries = (symbol: SymbolSearchResult) => {
     if(!symbol) return;
@@ -117,26 +120,28 @@ const ChartConfigurator = () => {
               <TabsTrigger value="stockdata">Stocks</TabsTrigger>
               <TabsTrigger value="daterange">Date range</TabsTrigger>
               <TabsTrigger value="chartconfig">Chart style</TabsTrigger>
+              <TabsTrigger className="md:hidden" value="preview">Preview</TabsTrigger>
             </TabsList>
             <TabsContent value="stockdata">
               <Card>
-                <CardContent className="pt-4">
-                  <div className="flex flex-col gap-2 w-full">
-                    {series.length === 0 && <p>No series added yet</p>}
-                    {series.map((s, i) => {
-                      const updateSeries = (newSeries: Series) => {
-                        setSeries(series.map((s) => s.name === newSeries.name ? newSeries : s))
-                      }
+                <CardContent className="pt-6 flex flex-col justify-around min-h-64">
+                  {series.map((s, i) => {
+                    const updateSeries = (newSeries: Series) => {
+                      setSeries(series.map((s) => s.name === newSeries.name ? newSeries : s))
+                    }
+                    
+                    return <SeriesSettings
+                    key={s.symbol.symbol}
+                    series={s}
+                    onSeriesUpdate={updateSeries}
+                    onRemoveSeries={(seriesToRm) => setSeries(series.filter((s) => s.name !== seriesToRm.name))}
+                    />
+                  })}
 
-                      return <SeriesSettings
-                        key={s.symbol.symbol}
-                        series={s}
-                        onSeriesUpdate={updateSeries}
-                        onRemoveSeries={(seriesToRm) => setSeries(series.filter((s) => s.name !== seriesToRm.name))}
-                        />
-                    })}
-
-                    <SeriesSearch onChange={addNewSeries} excludedSymbols={series.map(s => s.symbol.symbol)} />
+                  <div className="flex flex-col">
+                    <div className="mx-auto">
+                      <SeriesSearch onChange={addNewSeries} excludedSymbols={series.map(s => s.symbol.symbol)} />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -174,7 +179,7 @@ const ChartConfigurator = () => {
               <Card>
                 <CardContent className="pt-4">
                   <div className="div flex flex-col gap-2 pb-4">
-                    <Label htmlFor="rebase">Rebase stock value</Label>
+                    <Label htmlFor="rebase">Plot price change relative to day 1</Label>
                     <Switch
                       checked={rebase}
                       onCheckedChange={() => setRebase(!rebase)}
@@ -214,47 +219,87 @@ const ChartConfigurator = () => {
                     <Label htmlFor="duration">Animation duration (seconds)</Label>
                     <Input type="number" name="duration" value={durationInSeconds} onChange={(ev) => setDurationInSeconds(Number(ev.target.value))} />
                   </div>
+
+                  <div className="div flex flex-col gap-2 pb-4">
+                    <Label htmlFor="padding">Padding (px)</Label>
+                    <Input type="number" name="padding" value={chartPadding} onChange={(ev) => setChartPadding(Number(ev.target.value))} />
+                  </div>
+
+                  <div className="div flex flex-col gap-2 pb-4">
+                    <Label htmlFor="charttitle">Title</Label>
+                    <Input type="text" name="charttitle" value={chartTitle} onChange={(ev) => setChartTitle(ev.target.value)} />
+                  </div>
+
+                  <div className="div flex flex-col gap-2 pb-4">
+                    <Label htmlFor="charttitle">Show date</Label>
+                    <Switch
+                      checked={showDate}
+                      onCheckedChange={() => setShowDate(!showDate)}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent className="md:hidden" value="preview">
+              <Card>
+                <CardContent className="pt-4 flex flex-col justify-around min-h-64">
+                  { renderChart && (
+                    <AnimatedLineChart
+                      series={series}
+                      dateRange={dateRange}
+                      lookAhead={lookAhead}
+                      duration={1000*durationInSeconds}
+                      chartType={chartType}
+                      rebase={rebase}
+                      title={chartTitle}
+                      showDate={showDate}
+                      />
+                    )}
+                  { !renderChart && <div><p className="text-center">Choose some stocks to see a preview</p></div>}
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
 
-          <div className="flex flex-row justify-between items-center">
-            {dataNeedsReload ? (
-              <Button disabled={series.length === 0 || loadingData} onClick={loadChartData}>
-                {loadingData ? <RefreshCw className="animate-spin" /> : <span>Load chart data</span>}
-              </Button>
-            ) : (
-              <Badge className="bg-green-500"><Check size={14} className="mr-2" />Data loaded</Badge>
-            )}
-          </div>
+          <DataIndicator
+            series={series}
+            loadingData={loadingData}
+            dataNeedsReload={dataNeedsReload}
+            reloadData={loadChartData} />
+
         </div>
 
-        <div className="md:w-2/3">
+        <div className="hidden md:block md:w-2/3">
           <div className="h-12 flex justify-end">
             <DropdownMenu>
-              <DropdownMenuTrigger><Code /></DropdownMenuTrigger>
+              <DropdownMenuTrigger><Terminal /></DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuLabel>Debug</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setSeries(dummyData as unknown as Series[])}>Load dummy data</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowRender(!showRender)}>{showRender ? "Hide render" : "Show render"}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
           </div>
           <Card>
-            <CardContent className="pt-4">
+            <CardContent className="pt-4 flex flex-col justify-around min-h-64">
               { renderChart && (
                 <AnimatedLineChart
                   series={series}
                   dateRange={dateRange}
                   lookAhead={lookAhead}
+                  padding={chartPadding}
                   duration={1000*durationInSeconds}
                   chartType={chartType}
                   rebase={rebase}
+                  showRender={showRender}
+                  title={chartTitle}
+                  showDate={showDate}
                   />
                 )}
-              { !renderChart && <p className="text-center my-16">Choose some stocks to see a preview</p>}
+              { !renderChart && <div><p className="text-center">Choose some stocks to see a preview</p></div>}
             </CardContent>
           </Card>
         </div>

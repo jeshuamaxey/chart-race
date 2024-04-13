@@ -3,9 +3,10 @@ import { useMemo, useRef, useState } from "react"
 import { AxisOptions, Chart } from "react-charts"
 import { Button } from "./ui/button"
 import { Slider } from "./ui/slider"
-import { X, Pause, Play, RotateCcw, Video, Download } from "lucide-react"
+import { X, Pause, Play, RotateCcw, Video, Download, Circle, CircleDot } from "lucide-react"
 import { addDays, differenceInDays } from "date-fns"
 import setupRecording from "@/lib/recording";
+import { createChartDate, createChartTitle } from "@/lib/svgUtils"
 
 const USDollar = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -35,9 +36,23 @@ type AnimatedLineChartProps = {
   duration: number
   chartType?: 'line' | 'area',
   rebase?: boolean
+  padding?: number
+  showRender?: boolean
+  title: string,
+  showDate?: boolean
 }
 
-const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 'line', rebase = false}: AnimatedLineChartProps) => {
+const AnimatedLineChart = ({series,
+  dateRange,
+  lookAhead,
+  duration,
+  chartType = 'line',
+  rebase = false,
+  padding = 0,
+  showRender = false,
+  title,
+  showDate = false
+}: AnimatedLineChartProps) => {
   const DURATION_MS = duration || 1
   const PIXEL_RATIO = Math.min(devicePixelRatio, 4);
   const WIDTH = 1080
@@ -60,18 +75,21 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
   // this is a time stamp of the previous frame in the current animation
   const previousTimeRef = useRef<number | undefined>();
 
-  const {
-    canvas,
-    recordFrame,
-    canvasRecorder
-  } = setupRecording({
+  const initRecording = () => setupRecording({
     chartRef,
     setRecording,
     durationMs: DURATION_MS,
     pixelRatio: PIXEL_RATIO,
     width: WIDTH,
     height: HEIGHT,
+    padding,
+    offscreen: !showRender
   })
+
+  const {
+    recordFrame,
+    canvasRecorder
+  } = initRecording()
 
   const play = () => {
     if(elapsed >= DURATION_MS) {
@@ -140,8 +158,6 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
   }
 
   const startRecording = async () => {
-    console.log("startRecording")
-
     if(!chartRef.current || !renderRef.current || recording) {
       return
     }
@@ -152,19 +168,11 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
     await canvasRecorder.start();
     
     const onComplete = async () => {
-      console.log("onComplete")
       await canvasRecorder.stop();
     }
 
     // Animate to encode the rest
     requestRef.current = requestAnimationFrame((time) => tick(time, recordFrame, onComplete));
-  }
-
-  const cancelRecording = async () => {
-    setRecording(false)
-
-    await canvasRecorder.stop();
-    reset()
   }
 
   const daysSpan = differenceInDays(dateRange[1], dateRange[0])
@@ -190,8 +198,6 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
         })
     }
   })
-
-  console.log({chartData})
 
   const primaryAxis = useMemo(
     (): AxisOptions<DailyPrice> => ({
@@ -219,9 +225,37 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
   const durationReadoutMinutes = Math.floor(duration / 60000)
   const durationReadoutSeconds = Math.floor((duration % 60000) / 1000)
 
+  const svg = chartRef.current?.querySelector("svg")
+
+  if(svg) {
+    const chartTitleId = "chartTitle"
+    const chartDateDisplayId = "chartDateDisplay"
+
+    let chartTitle = svg.querySelector(`text#${chartTitleId}`)
+    let chartDateDisplay = svg.querySelector(`text#${chartDateDisplayId}`)
+
+    if(!chartTitle) {
+      chartTitle = createChartTitle(chartTitleId, WIDTH/2, padding)
+      svg.appendChild(chartTitle)
+    }
+    
+    if(!chartDateDisplay) {
+      chartDateDisplay = createChartDate(chartDateDisplayId, WIDTH/2, padding)
+      svg.appendChild(chartDateDisplay)
+    }
+
+    chartTitle.textContent = title
+    const month = new Date(maxDate).toLocaleString('default', { month: 'long' })
+    const year = new Date(maxDate).getFullYear()
+    chartDateDisplay.textContent = `${month} ${year}`
+
+    chartDateDisplay.setAttribute("display", showDate ? "block" : "none")
+
+  }
+
   return (
     <div className="flex flex-col gap-2">
-      <div className="h-[560px] w-[560px]" ref={chartRef}>
+      <div className="h-[560px] w-[560px] mx-auto border border-green-500" ref={chartRef}>
         <Chart
           options={{
             data: chartData,
@@ -231,6 +265,7 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
             primaryCursor: false,
             secondaryCursor: false,
             getSeriesStyle: (series) => ({color: series.originalSeries.color}),
+            padding: {top: padding, right: padding, bottom: padding, left: padding}
           }}
           />
       </div>
@@ -238,9 +273,9 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
       <div className="w-full flex flex-row gap-2">
         <Button disabled={recording} variant="ghost" size="sm" onClick={playing ? () => pause() : () => play()}>{playing ? <Pause size={16} /> : <Play size={16} />}</Button>
         <Button disabled={recording} variant="ghost" size="sm" onClick={reset}><RotateCcw size={16} /></Button>
-        <Button variant="ghost" size="sm" onClick={recording ? () => cancelRecording : startRecording}>
+        <Button variant="ghost" size="sm" disabled={recording} onClick={startRecording}>
           {recording
-            ? <><X size={16}/></>
+            ? <><CircleDot className="animate-pulse" color={"red"} size={16}/></>
             : <><Download size={16} /></>
           }
         </Button>
@@ -250,7 +285,7 @@ const AnimatedLineChart = ({series, dateRange, lookAhead, duration, chartType = 
         </p>
       </div>
 
-      <div ref={renderRef} className=""></div>
+      <div ref={renderRef} className="w-[1080px] h-[1080px]"></div>
     </div>
   )
 }

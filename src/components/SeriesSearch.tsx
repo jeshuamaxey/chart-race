@@ -52,6 +52,15 @@ const SeriesSearch = ({onChange, excludedSymbols = []}: SeriesSearchProps) => {
     setSearching(false)
   }, 300)
 
+  let helpText = null
+  if(searchResults === null && query.length > 0 && query.length < 3) {
+    helpText = "Type at least 3 characters to search."
+  } else if(searchResults === null && !searching && query) {
+    helpText = "No results found."
+  } else if(searching) {
+    helpText = "Searching..."
+  }
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -74,9 +83,9 @@ const SeriesSearch = ({onChange, excludedSymbols = []}: SeriesSearchProps) => {
           />
 
           <div className="flex flex-col gap-2">
-            {searching && <div className="flex items-center justify-between p-2 rounded-md">Searching...</div>}
-            {searchResults === null && query.length > 0 && query.length < 3 && <div className="flex items-center justify-between p-2 rounded-md">Type at least 3 characters to search.</div>}
-            {searchResults === null && !searching && query && <div className="flex items-center justify-between p-2 rounded-md">No results found.</div>}
+            {helpText && <div className="flex items-center justify-between p-2 rounded-md">
+              {helpText}
+            </div>}
 
             {searchResults && searchResults.map((result, i) => {
               const alreadyPicked = value?.symbol === result.symbol || excludedSymbols.includes(result.symbol)

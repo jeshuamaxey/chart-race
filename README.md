@@ -8,16 +8,16 @@ https://chart-race.vercel.app/
 - [ ] basics
   - [x] set line color
   - [ ] 60fps
-  - [ ] offscreen rendering
+  - [x] offscreen rendering
 - [ ] chart features
   - [x] returns since data (rebase stock price to day 1)
-  - [ ] date top right corner
-  - [ ] chart title + subtitle
+  - [x] date top right corner
+  - [x] chart title
   - [ ] timed annotations top left
   - [ ] watermark
   - [ ] series title at the tip of each line
 - [ ] UX
-  - [ ] load examples (FAANG, Oil giants, Buffet's portfolio stars)
+  - [ ] load examples (FAANG, Chip wars, Oil giants, Buffet's portfolio stars)
   - [ ] fix first frame of video
 
 ## Bugs
